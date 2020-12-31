@@ -1,25 +1,40 @@
-import logo from './logo.svg';
 import './App.css';
+import ImageUploader from 'react-images-upload';
+import { useState, useEffect } from 'react';
+
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+  const [picture, setPicture] = useState(0);
+
+  const onDrop = picture => {
+    setPicture(URL.createObjectURL(picture[picture.length-1]));
+  };
+
+    return (
+      <div className="App">
+      <div className="jumbotron">
+        <h1 className="display-4"> Paint by Numbers </h1>
+      </div>
+      <div className="container">
+        <ImageUploader
+          withIcon={true}
+          buttonText='Choose image'
+          onChange={onDrop}
+          imgExtension={['.jpg', '.gif', '.png']}
+          maxFileSize={5242880}
+        />
+        { picture!==0 &&
+          <div className="pictures">
+            <img src={picture} width="200"/>
+          </div>
+        }
+      </div>
+      </div>
+    );
+}
+
+function Palette() {
+
 }
 
 export default App;
