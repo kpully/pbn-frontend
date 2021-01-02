@@ -24,15 +24,7 @@ class Blob:
         if self.palette:
             self._conform_to_palette()
 
-    def _distance(self, c1, c2):
-        """
-        Utility method to calculate RGB euclidean distance between anchor pixel and given pixel
-        """
-        d = math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
-        return d
 
-    def _conform_to_palette(self):
-        self.rgb = min(self.palette, key=lambda c: self._distance(self.rgb, c))
 
     def _neighbor_blobs(self, img, pixel_to_blob):
         """
