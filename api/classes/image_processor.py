@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 from sklearn.cluster import KMeans
 
-from classes.blob import Blob
+from .blob import Blob
 
 
 class ImageProcessor:
