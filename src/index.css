@@ -14,7 +14,26 @@ code {
 
 .pictures {
 	display: flex;
-	 flex-direction: row;
+	flex-direction: row;
+}
+
+.picture {
+  padding: 1em;
+}
+
+.submit-button {
+  padding:1em;
+}
+
+.buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
 }
+
+.button {
+    padding: 1em;
+}
+
 

@@ -8,20 +8,30 @@ from sklearn.cluster import KMeans
 from .blob import Blob
 
 
+
 class ImageProcessor:
+    # class variables
+    WHITE = [0, 0, 0]
+    BLACK = [255, 255, 255]
+    DIRECTIONS = [(0, 1), (1, 0), (-1, 0), (0, -1)]
+
     def __init__(self, image_name, threshold=50, complex_palette=False):
-        # image versions
+        # image vars
         self.image_name = image_name
         self.image = Image.open(image_name).convert("RGB")
 
         # image versions
         self.original_image = Image.open(image_name).convert("RGB")
-        self.processed_image = None
+        self.blobbed_image = None
         self.palette_limited_image = None
+        self.outline_image = None
 
         # pixel, blob data structures
         self.pixel_data = np.reshape(np.array(self.image.getdata()), (self.image.height, self.image.width, 3))
-        self.pixel_data_limited_palette = np.empty((self.image.height, self.image.width, 3), dtype=np.uint8)
+        self.pixel_data_limited_palette = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
+        self.pixel_data_blobbed = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
+        self.pixel_data_outline = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
+
         self.blobs = {}  # map of integer keys mapping to Blob object
         self.pixel_to_blob = {}  # map of pixel coordinate keys to key in self.blobs
 
@@ -33,29 +43,100 @@ class ImageProcessor:
         self.THRESHOLD = threshold
 
 
-    def make_outline(self):
-        pass
-
-
-    # @classmethod
-    # def _distance(cls, c1, c2):
-    #     """
-    #     Utility method to calculate RGB euclidean distance between anchor pixel and given pixel
-    #     """
-    #     d = math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
-    #     return d
-
-
-    def process_image(self):
+    def make_blobs(self, reduced_palette=False, override=False):
         """
         Create blobs with similarly-colored pixels by calling floodfill
         """
-        for x in range(self.image.width):
-            for y in range(self.image.height):
+        pixel_data = self.pixel_data_limited_palette if reduced_palette else self.pixel_data
+
+        # reset blob data
+        if override:
+            self.pixel_to_blob, self.blobs = {}, {}
+
+        for x in range(self.image.height):
+            for y in range(self.image.width):
                 if (x, y) not in self.pixel_to_blob:
                     blob_count = len(self.blobs)
-                    self._flood_fill(x, y, blob_count)
-        self.processed_image = ImageProcessor.make_image(self.original_image, self.pixel_to_blob, self.blobs)
+                    self._flood_fill(x, y, blob_count, pixel_data)
+
+        # make blobbed pixel data based off results from floodfill
+        self.make_blobbed_pixel_data()
+        self.blobbed_image = ImageProcessor.make_image(self.pixel_data_blobbed)
+
+
+    def make_outline(self, pixel_data):
+        for i in range(1, self.image.height-1):
+            for j in range(1, self.image.width-1):
+                if self._neighbors_same(i, j, pixel_data):
+                    self.pixel_data_outline[i][j] = ImageProcessor.BLACK
+                else:
+                    self.pixel_data_outline[i][j] = ImageProcessor.WHITE
+        self.outline_image = ImageProcessor.make_image(self.pixel_data_outline)
+
+
+    def _neighbors_same(self, x, y, pixel_data):
+        for dx, dy in ImageProcessor.DIRECTIONS:
+            if not all(pixel_data[x][y] == pixel_data[x+dx][y+dy]):
+                return False
+        return True
+
+
+    def make_blobbed_pixel_data(self):
+        h = self.image.height
+        w = self.image.width
+        for i in range(self.image.height):
+            for j in range(self.image.width):
+                b = self.pixel_to_blob[(i, j)]
+                blb = self.blobs[b]
+                self.pixel_data_blobbed[i][j] = blb.rgb
+
+
+    def _flood_fill(self, x1, y1, blob_count, pixel_data):
+        """
+        Internal method
+        Stack-based DFS implementation of floodfill to group like-colored neighboring pixels
+        """
+        # constants
+        p1 = pixel_data[x1][y1]
+
+        # initialize data structures
+        seen = set()
+        curr_blob = set()
+
+        def _get_distance(x, y):
+            """
+            Utility method internal to _flood_fill to calculate RGB euclidean distance
+            between a blob's anchor pixel and given pixel
+            """
+            p2 = pixel_data[x][y]
+            d = math.sqrt((int(p1[0]) - int(p2[0])) ** 2 + (int(p1[1]) - int(p2[1])) ** 2 + (int(p1[2]) - int(p2[2])) ** 2)
+            return d
+
+        # begin DFS
+        seen.add((x1, y1))
+        stack = [(x1, y1)]
+        while stack:
+            x, y = stack.pop()
+            # add coords to current blob and map coords to current blob
+            curr_blob.add((x, y))
+            self.pixel_to_blob[(x, y)] = blob_count
+
+            # iterate through neighbors to check for similarly-colored pixels
+            for dx, dy in ImageProcessor.DIRECTIONS:
+                # continue if pixel is already assigned to a blob
+                if (x+dx, y+dy) in self.pixel_to_blob:
+                    continue
+                # continue if pixel has already been seen or is out of bounds
+                elif (x + dx, y + dy) in seen or not ((0 <= (x + dx) < self.image.height) and (0 <= (y + dy) < self.image.width)):
+                        continue
+                else:
+                    seen.add((x + dx, y + dy))
+                    if _get_distance(x + dx, y + dy) <= self.THRESHOLD:
+                        stack.append((x + dx, y + dy))
+        # once stack is empty, add curr_blob as a Blob object blobs map
+        b = Blob(pixels=curr_blob, palette=self.palette)
+        b.update_rgb(pixel_data)
+        self.blobs[blob_count] = b
 
 
     def remove_small_blobs(self):
@@ -84,58 +165,15 @@ class ImageProcessor:
         """
         Reduce size of image by given scale to improve performance on large images
         """
+        # resize images
         self.image = self.image.resize((self.image.width // scale, self.image.height // scale))
         self.original_image = self.original_image.resize(
             (self.original_image.width // scale, self.original_image.height // scale))
-        # reset pixel data to new bounds
+        # reset pixel data to conform to new dimensions
         self.pixel_data = np.reshape(np.array(self.image.getdata()), (self.image.height, self.image.width, 3))
-        self.pixel_data_limited_palette = np.empty((self.image.height, self.image.width, 3))
-
-
-    def _flood_fill(self, x1, y1, blob_count):
-        """
-        Internal method
-        Stack-based DFS implementation of floodfill to group like-colored neighboring pixels
-        """
-        # constants
-        p1 = self.image.getpixel((x1, y1))
-        directions = [(0, 1), (1, 0), (-1, 0), (0, -1)]
-
-        # initialize data structures
-        seen = set()
-        curr_blob = set()
-
-        def _get_distance(x, y):
-            """
-            Utility method internal to _flood_fill to calculate RGB euclidean distance
-            between a blob's anchor pixel and given pixel
-            """
-            p2 = self.image.getpixel((x, y))
-            d = math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
-            return d
-
-        # begin DFS
-        seen.add((x1, y1))
-        stack = [(x1, y1)]
-        while stack:
-            x, y = stack.pop()
-            # initialize Pixel object from coordinates popped off stack
-            curr_blob.add((x, y))
-            # map pixel coordinates to current blob
-            self.pixel_to_blob[(x, y)] = blob_count
-            # iterate through neighbors to check for similarly-colored pixels
-            for dx, dy in directions:
-                if (x + dx, y + dy) in seen:
-                    continue
-                else:
-                    seen.add((x + dx, y + dy))
-                    if (0 <= x + dx < self.image.width) and (0 <= y + dy < self.image.height):
-                        if _get_distance(x + dx, y + dy) <= self.THRESHOLD:
-                            stack.append((x + dx, y + dy))
-        # once stack is empty, add curr_blob as a Blob object blobs map
-        b = Blob(pixels=curr_blob, palette=self.palette)
-        b.update_rgb(self.pixel_data)
-        self.blobs[blob_count] = b
+        self.pixel_data_limited_palette = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
+        self.pixel_data_blobbed = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
+        self.pixel_data_outline = np.empty((self.image.height, self.image.width, 3), dtype=np.uint64)
 
 
     @classmethod
@@ -144,20 +182,6 @@ class ImageProcessor:
         new_image = Image.fromarray(array)
         return new_image
 
-
-    # @classmethod
-    # def make_image(cls, original_image, pixel_to_blob, blobs):
-    #     new_pixels = []
-    #     for j in range(original_image.height):
-    #         row = []
-    #         for i in range(original_image.width):
-    #             b = pixel_to_blob[(i, j)]
-    #             bl = blobs[b]
-    #             row.append(bl.rgb)
-    #         new_pixels.append(row)
-    #     array = np.array(new_pixels, dtype=np.uint8)
-    #     new_image = Image.fromarray(array)
-    #     return new_image
 
     def set_palette(self, num_clusters=5):
         # ing = cv2.
@@ -175,6 +199,7 @@ class ImageProcessor:
                 self.pixel_data_limited_palette[x][y] = colors[kmeans.labels_[index]]
 
         self.palette = colors
+        # create palette visual for QA purposes
         palette_viz = Image.new("RGB", (500, 50), (255, 255, 255))
         draw = ImageDraw.Draw(palette_viz)
         i = 0

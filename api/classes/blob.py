@@ -1,29 +1,31 @@
 class Blob:
     def __init__(self, pixels=set(), palette=None):
         self.pixels = pixels
-        self.palette = palette
+        # self.palette = palette
         self.rgb = [0, 0, 0]
+
 
     def get_size(self):
         return len(self.pixels)
+
 
     def merge(self, other):
         self.pixels.update(other.pixels)
         # self._update_rgb()
 
+
     def update_rgb(self, pixel_data):
         r, g, b = 0, 0, 0
         for pixel_x, pixel_y in list(self.pixels):
-            r_, g_, b_ = pixel_data[pixel_y][pixel_x]
+            r_, g_, b_ = pixel_data[pixel_x][pixel_y]
             r += r_
             g += g_
             b += b_
         l = len(self.pixels)
         self.rgb = [r / l, g / l, b / l]
 
-        if self.palette:
-            self._conform_to_palette()
-
+        # if self.palette:
+        #     self._conform_to_palette()
 
 
     def _neighbor_blobs(self, img, pixel_to_blob):
