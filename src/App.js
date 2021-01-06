@@ -39,9 +39,9 @@ function App() {
     .then(img => {
       console.log(img);
       setProcessedImage(URL.createObjectURL(img));
-    });
-//    .then(_ => fetch("/get_outline"))
-//    .then(response => console.log(response.json()));;
+    })
+    .then(_ => fetch("/get_outline"))
+    .then(response => console.log(response.json()));;
 
   };
 

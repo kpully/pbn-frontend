@@ -26,19 +26,18 @@ def get_limited_palette_image():
 	file_object = io.BytesIO()
 	processor.palette_limited_image.save(file_object, 'PNG')
 	file_object.seek(0)
-	# return {"message":"Hello, World!"}
 
 	session['pixel_data'] = json.dumps(processor.pixel_data_limited_palette.tolist())
 
 	return send_file(file_object, mimetype="image/PNG")
 
-# @current_app.route('/get_outline')
-# def get_outline():
-# 	processor = session.get("processor")
-# 	if processor:
-# 		return {"message":"success"}
-# 	else:
-# 		return {"message":"fail"}
+@current_app.route('/get_outline')
+def get_outline():
+	processor = session.get("pixel_data")
+	if processor:
+		return {"message":"success"}
+	else:
+		return {"message":"fail"}
 
 
 # if __name__ == "__main__":
