@@ -34,15 +34,15 @@ function App() {
       body: data,
     })
     .then(response => {
-      // console.log(response.body());
-      // setProcessedImage(URL.createObjectURL(response.blob()));
-        // setProcessedImage(response.blob());
       return response.blob();
     })
     .then(img => {
       console.log(img);
       setProcessedImage(URL.createObjectURL(img));
     });
+//    .then(_ => fetch("/get_outline"))
+//    .then(response => console.log(response.json()));;
+
   };
 
     return (

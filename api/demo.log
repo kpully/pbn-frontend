@@ -1,2 +1,0 @@
-INFO:werkzeug:127.0.0.1 - - [03/Jan/2021 10:57:53] "[33mGET /[object%20Response] HTTP/1.1[0m" 404 -
-INFO:werkzeug: * Detected change in '/Users/katherinepully/pbn/api/api.py', reloading

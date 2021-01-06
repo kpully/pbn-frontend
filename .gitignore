@@ -30,3 +30,4 @@ __pycache__
 
 # images
 public/images/
+backend/flask_session
