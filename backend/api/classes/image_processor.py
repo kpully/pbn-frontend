@@ -63,22 +63,25 @@ class ImageProcessor:
         self.make_blobbed_pixel_data()
         self.blobbed_image = ImageProcessor.make_image(self.pixel_data_blobbed)
 
+    @classmethod
+    def make_outline(cls, pixel_data):
+        def _neighbors_same(x, y):
+            for dx, dy in ImageProcessor.DIRECTIONS:
+                if not all(pixel_data[x][y] == pixel_data[x + dx][y + dy]):
+                    return False
+            return True
 
-    def make_outline(self, pixel_data):
-        for i in range(1, self.image.height-1):
-            for j in range(1, self.image.width-1):
-                if self._neighbors_same(i, j, pixel_data):
-                    self.pixel_data_outline[i][j] = ImageProcessor.BLACK
+        width, height = pixel_data.shape[1], pixel_data.shape[0]
+        pixel_data_outline = np.empty((height, width, 3), dtype=np.uint64)
+        for i in range(1, height-1):
+            for j in range(1, width-1):
+                if _neighbors_same(i, j):
+                    pixel_data_outline[i][j] = ImageProcessor.BLACK
                 else:
-                    self.pixel_data_outline[i][j] = ImageProcessor.WHITE
-        self.outline_image = ImageProcessor.make_image(self.pixel_data_outline)
+                    pixel_data_outline[i][j] = ImageProcessor.WHITE
+        outline_image = ImageProcessor.make_image(pixel_data_outline)
+        return outline_image
 
-
-    def _neighbors_same(self, x, y, pixel_data):
-        for dx, dy in ImageProcessor.DIRECTIONS:
-            if not all(pixel_data[x][y] == pixel_data[x+dx][y+dy]):
-                return False
-        return True
 
 
     def make_blobbed_pixel_data(self):
@@ -139,20 +142,19 @@ class ImageProcessor:
         self.blobs[blob_count] = b
 
 
-    def remove_small_blobs(self):
+    def remove_small_blobs(self, min_blob_size=20):
         """
         Loop through blobs map from 0 to len(blobs)
         If blob size is under a designated threshold, merge the blob with its largest neighbor
         After merge, update blobs map accordingly by removing small blob
         """
-
         # find small blobs
         blob_count = len(self.blobs)
         for i in range(0, blob_count):
             if self.blobs[i]:  # if blob still exists in map
-                if self.blobs[i].get_size() < 25:
+                if self.blobs[i].get_size() < min_blob_size:
                     small_blob = self.blobs[i]
-                    neighbor_blobs = small_blob._neighbor_blobs(self.image, self.pixel_to_blob)
+                    neighbor_blobs = small_blob.neighbor_blobs(self.image, self.pixel_to_blob)
                     m = max(neighbor_blobs, key=lambda x: self.blobs[x].get_size())
                     self.blobs[m].merge(small_blob)
                     # reassign pixels in smaller blob to largest neighbor blob
@@ -210,3 +212,11 @@ class ImageProcessor:
             i += 1
         self.palette_viz = palette_viz
         self.palette_limited_image = ImageProcessor.make_image(self.pixel_data_limited_palette)
+
+
+if __name__=="__main__":
+    processor = ImageProcessor("../../../public/images/panda.jpg")
+    processor.resize_image(3)
+    processor.set_palette()
+    processor.make_blobs(reduced_palette=True)
+    processor.remove_small_blobs()

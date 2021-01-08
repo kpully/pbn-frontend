@@ -7,12 +7,11 @@ import Button from 'react-bootstrap/Button'
 function App() {
   const [picture, setPicture] = useState(0);
   const [processedImage, setProcessedImage] = useState(0);
-  const [f, setF] = useState(0);
+  const [pictureFile, setPictureFile] = useState(0);
+  const [outline, setOutline] = useState(0);
 
   const onDrop = p => {
-    console.log("p", p)
-    setF(p[p.length-1]);
-    console.log("f", f);
+    setPictureFile(p[p.length-1]);
     setPicture(URL.createObjectURL(p[p.length-1]));
 
   };
@@ -27,7 +26,7 @@ function App() {
 
   const handleSubmit = async function() {
     const data = new FormData();
-    data.append('file', f);
+    data.append('file', pictureFile);
 
     fetch("/get_palette", { 
       method: "POST",
@@ -41,7 +40,10 @@ function App() {
       setProcessedImage(URL.createObjectURL(img));
     })
     .then(_ => fetch("/get_outline"))
-    .then(response => console.log(response.json()));;
+    .then(response => response.blob())
+    .then(img => {
+        setOutline(URL.createObjectURL(img));
+    });
 
   };
 
@@ -65,7 +67,9 @@ function App() {
               <div className="picture">
                 { processedImage !==0 && <img src={processedImage} width="300"/> }
               </div>
-
+              <div className="picture">
+                { outline !==0 && <img src={outline} width="300"/> }
+              </div>
 
             </div>
             <div className="buttons">

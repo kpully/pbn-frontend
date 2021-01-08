@@ -28,7 +28,7 @@ class Blob:
         #     self._conform_to_palette()
 
 
-    def _neighbor_blobs(self, img, pixel_to_blob):
+    def neighbor_blobs(self, img, pixel_to_blob):
         """
         Iterate through all pixels of blob and check if neighboring pixel are part of a different blob
         If neighbor pixel does not belong to current blob, add neighbor pixel's blob to neighbor_blobs
@@ -41,7 +41,7 @@ class Blob:
 
         for pixel_x, pixel_y in self.pixels:
             for dx, dy in directions:
-                if (0 <= pixel_x + dx < img.width) and (0 <= pixel_y + dy < img.height):
+                if (0 <= pixel_x + dx < img.height) and (0 <= pixel_y + dy < img.width):
                     if (pixel_x + dx, pixel_y + dy) not in seen:
                         seen.add((pixel_x + dx, pixel_y + dy))
                         if (pixel_x + dx, pixel_y + dy) not in self.pixels:
